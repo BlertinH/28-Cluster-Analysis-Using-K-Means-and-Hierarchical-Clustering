@@ -11,7 +11,7 @@ def hierarchical_clustering(data,metric,num_clusters):
 
     Z = linkage(data, method=method, metric=metric_for_linkage)
 
-    fig = plt.Figure(figsize=(7, 4))
+    fig = plt.Figure(figsize=(7, 4))g
     ax = fig.add_subplot(111)
     dendrogram(Z, ax=ax)
 
