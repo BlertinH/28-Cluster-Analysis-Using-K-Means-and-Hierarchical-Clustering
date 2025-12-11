@@ -13,71 +13,99 @@ try:
 except ImportError:
     FASTCLUSTER_AVAILABLE = False
 
-
 def normalize_preserving_order(raw_labels):
     seen = []
     for lab in raw_labels:
         if lab not in seen:
             seen.append(lab)
     mapping = {lab: i for i, lab in enumerate(seen)}
-    return np.array([mapping[l] for l in raw_labels]), seen
+    mapped = np.array([mapping[l] for l in raw_labels])
+    return mapped, seen
 
 
 def hierarchical_clustering(data, metric="euclidean", k=3, random_state=None):
+
     if random_state is not None:
         np.random.seed(random_state)
 
-    X = np.asarray(data, dtype=float)
-    if X.ndim != 2:
-        raise ValueError("Data must be 2D")
-    if np.any(np.isnan(X)) or np.any(np.isinf(X)):
-        raise ValueError("Invalid values")
+    data = np.asarray(data, dtype=float)
 
-    n, d = X.shape
+    if data.ndim != 2:
+        raise ValueError("Data must be a 2D array")
+    if np.any(np.isnan(data)) or np.any(np.isinf(data)):
+        raise ValueError("Data contains NaN or Inf")
+
+    n, d = data.shape
+
     if not (1 <= k <= n):
-        raise ValueError("Invalid cluster count")
+        raise ValueError("Invalid number of clusters")
 
     if metric not in ["euclidean", "cityblock"]:
-        warnings.warn("")
+        warnings.warn(f"Invalid metric '{metric}', switching to euclidean.")
         metric = "euclidean"
 
-    Xs = StandardScaler().fit_transform(X)
-    dendro_fig = None
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(data)
 
     if n <= 5000:
         method = "ward" if metric == "euclidean" else "complete"
-        Z = linkage(Xs, method=method, metric=metric)
-        fig = plt.figure(figsize=(10, 6))
+        Z = linkage(data_scaled, method=method, metric=metric)
+
+        dendro_fig = plt.figure(figsize=(10, 6))
         dendrogram(Z)
+        plt.title(f"Dendrogram ({method}, metric={metric})")
+        plt.xlabel("Samples")
+        plt.ylabel("Distance")
+
         raw = fcluster(Z, k, criterion="maxclust")
         labels, _ = normalize_preserving_order(raw)
-        plt.close(fig)
-        return labels, fig
+
+        plt.close(dendro_fig)
+        return labels, dendro_fig
 
     if n <= 50000:
         if metric == "cityblock":
-            model = AgglomerativeClustering(n_clusters=k, metric="manhattan", linkage="complete")
+            model = AgglomerativeClustering(
+                n_clusters=k,
+                metric="manhattan",
+                linkage="complete"
+            )
         else:
-            model = AgglomerativeClustering(n_clusters=k, metric="euclidean", linkage="ward")
-        labels = model.fit_predict(Xs)
+            model = AgglomerativeClustering(
+                n_clusters=k,
+                metric="euclidean",
+                linkage="ward"
+            )
+
+        labels = model.fit_predict(data_scaled)
         return labels, None
 
     if FASTCLUSTER_AVAILABLE:
+
+        print(f"[INFO] Using fastcluster for large dataset (n={n})")
+
         if metric == "euclidean":
-            Z = fastcluster.linkage_vector(Xs, method="ward")
+            Z = fastcluster.linkage_vector(data_scaled, method="ward")
         else:
-            Z = fastcluster.linkage(Xs, method="complete", metric="cityblock")
+            Z = fastcluster.linkage(data_scaled, method="complete", metric="cityblock")
+
         raw = fcluster(Z, k, criterion="maxclust")
         labels, _ = normalize_preserving_order(raw)
         return labels, None
 
+    print(f"[INFO] Using PCA reduction for large dataset (n={n})")
+
     pca = PCA(n_components=min(50, d, n - 1))
-    reduced = pca.fit_transform(Xs)
+    reduced = pca.fit_transform(data_scaled)
 
     if metric == "cityblock":
-        model = AgglomerativeClustering(n_clusters=k, metric="manhattan", linkage="complete")
+        model = AgglomerativeClustering(
+            n_clusters=k, metric="manhattan", linkage="complete"
+        )
     else:
-        model = AgglomerativeClustering(n_clusters=k, metric="euclidean", linkage="ward")
+        model = AgglomerativeClustering(
+            n_clusters=k, metric="euclidean", linkage="ward"
+        )
 
     labels = model.fit_predict(reduced)
     return labels, None
