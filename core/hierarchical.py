@@ -1,88 +1,83 @@
 import numpy as np
-from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
-from scipy.spatial.distance import cdist
+import warnings
 import matplotlib.pyplot as plt
 
-VALID_METRICS = ["euclidean", "cityblock"]
-MAX_HIER_SAMPLES = 3000
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+try:
+    import fastcluster
+    FASTCLUSTER_AVAILABLE = True
+except ImportError:
+    FASTCLUSTER_AVAILABLE = False
 
 
-def _compute_prototypes(X, labels, metric):
-    X = np.asarray(X, dtype=float)
-    labels = np.asarray(labels)
-    unique = np.unique(labels)
-
-    prototypes = []
-    for lab in unique:
-        pts = X[labels == lab]
-        if pts.size == 0:
-            continue
-
-        if metric == "cityblock":
-            prototypes.append(np.median(pts, axis=0))
-            prototypes.append(np.mean(pts, axis=0))
-
-    return np.array(prototypes), unique
+def normalize_preserving_order(raw_labels):
+    seen = []
+    for lab in raw_labels:
+        if lab not in seen:
+            seen.append(lab)
+    mapping = {lab: i for i, lab in enumerate(seen)}
+    return np.array([mapping[l] for l in raw_labels]), seen
 
 
-def hierarchical_clustering(data, metric, num_clusters):
+def hierarchical_clustering(data, metric="euclidean", k=3, random_state=None):
+    if random_state is not None:
+        np.random.seed(random_state)
+
     X = np.asarray(data, dtype=float)
-
-    # Basic validations
     if X.ndim != 2:
-        raise ValueError(f"Data must be 2D array, got shape {X.shape}")
-    n = len(X)
-    if n < 2:
-        raise ValueError("Need at least 2 points for hierarchical clustering")
-    if not (1 <= num_clusters <= n):
-        raise ValueError(f"num_clusters must be between 1 and {n}")
+        raise ValueError("Data must be 2D")
+    if np.any(np.isnan(X)) or np.any(np.isinf(X)):
+        raise ValueError("Invalid values")
 
-    # Metric + method selection
-    if metric not in VALID_METRICS:
+    n, d = X.shape
+    if not (1 <= k <= n):
+        raise ValueError("Invalid cluster count")
+
+    if metric not in ["euclidean", "cityblock"]:
+        warnings.warn("")
         metric = "euclidean"
-    method = "ward" if metric == "euclidean" else "complete"
-    metric_for_linkage = "euclidean" if metric == "euclidean" else metric
 
-    try:
-        if n <= MAX_HIER_SAMPLES:
-            Z = linkage(X, method=method, metric=metric_for_linkage)
+    Xs = StandardScaler().fit_transform(X)
+    dendro_fig = None
 
-            fig = plt.Figure(figsize=(7, 4))
-            ax = fig.add_subplot(111)
-            dendrogram(Z, ax=ax)
+    if n <= 5000:
+        method = "ward" if metric == "euclidean" else "complete"
+        Z = linkage(Xs, method=method, metric=metric)
+        fig = plt.figure(figsize=(10, 6))
+        dendrogram(Z)
+        raw = fcluster(Z, k, criterion="maxclust")
+        labels, _ = normalize_preserving_order(raw)
+        plt.close(fig)
+        return labels, fig
 
-            ax.set_title(f"Dendrogram ({method}, metric={metric_for_linkage})")
-            ax.set_xlabel("Sample Index")
-            ax.set_ylabel("Distance")
-            ax.grid(True)
+    if n <= 50000:
+        if metric == "cityblock":
+            model = AgglomerativeClustering(n_clusters=k, metric="manhattan", linkage="complete")
+        else:
+            model = AgglomerativeClustering(n_clusters=k, metric="euclidean", linkage="ward")
+        labels = model.fit_predict(Xs)
+        return labels, None
 
-            labels = fcluster(Z, num_clusters, criterion="maxclust") - 1
-            return labels, fig
+    if FASTCLUSTER_AVAILABLE:
+        if metric == "euclidean":
+            Z = fastcluster.linkage_vector(Xs, method="ward")
+        else:
+            Z = fastcluster.linkage(Xs, method="complete", metric="cityblock")
+        raw = fcluster(Z, k, criterion="maxclust")
+        labels, _ = normalize_preserving_order(raw)
+        return labels, None
 
-        rng = np.random.default_rng(42)
-        sample_size = min(n, MAX_HIER_SAMPLES)
-        idx_sample = rng.choice(n, size=sample_size, replace=False)
-        X_sample = X[idx_sample]
+    pca = PCA(n_components=min(50, d, n - 1))
+    reduced = pca.fit_transform(Xs)
 
-        Z_sample = linkage(X_sample, method=method, metric=metric_for_linkage)
-        sample_labels = fcluster(Z_sample, num_clusters, criterion="maxclust") - 1
+    if metric == "cityblock":
+        model = AgglomerativeClustering(n_clusters=k, metric="manhattan", linkage="complete")
+    else:
+        model = AgglomerativeClustering(n_clusters=k, metric="euclidean", linkage="ward")
 
-        protos, _ = _compute_prototypes(X_sample, sample_labels, metric_for_linkage)
-        dists = cdist(X, protos, metric=metric_for_linkage)
-        labels_full = np.argmin(dists, axis=1).astype(int)
-
-        fig = plt.Figure(figsize=(7, 4))
-        ax = fig.add_subplot(111)
-        dendrogram(Z_sample, ax=ax)
-        ax.set_title(
-            f"Dendrogram (sampled: {sample_size}/{n}, metric={metric_for_linkage})"
-        )
-        ax.set_xlabel("Sample Index")
-        ax.set_ylabel("Distance")
-        ax.grid(True)
-
-        return labels_full, fig
-
-    except Exception as e:
-        print("Hierarchical error:", e)
-        return None, None
+    labels = model.fit_predict(reduced)
+    return labels, None
