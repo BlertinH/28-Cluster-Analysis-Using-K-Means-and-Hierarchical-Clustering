@@ -43,7 +43,7 @@ def plot_voronoi(data, centroids, labels, title="Voronoi Decision Boundary"):
 
             if -1 not in region and region:
                 polygon = [vor.vertices[v] for v in region]
-                ax.fill(zip(polygon), alpha=0.20, color=colors[i])
+                ax.fill(*zip(*polygon), alpha=0.20, color=colors[i])
 
     except QhullError:
         print("[WARN] Voronoi failed to generate (collinear centroids).")

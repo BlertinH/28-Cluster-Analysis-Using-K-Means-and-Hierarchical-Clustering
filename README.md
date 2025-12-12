@@ -157,34 +157,37 @@ The centroid should remain close to the dense region of points and should not be
 
 ## K-Means Clustering - Output
 
-### Eucledian
+### Euclidean
 
-<div style="display: flex;">
-<img src="images/exampleK_eucledian1.png" style="width: 50%">
-<img src="images/exampleK_eucledian2.png" style="width: 50%">
-</div>
+| Cluster View 1                      | Cluster View 2                      |
+| ----------------------------------- | ----------------------------------- |
+| ![](images/exampleK_eucledian1.png) | ![](images/exampleK_eucledian2.png) |
+
+---
 
 ### Cityblock
 
-<div style="display: flex;">
-<img src="images/exampleK_cityblock.png" style="width: 50%">
-</div>
+| Cluster View                       |
+| ---------------------------------- |
+| ![](images/exampleK_cityblock.png) |
+
+---
 
 ## Hierarchical Clustering - Output
 
-### Eucledian
+### Euclidean
 
-<div style="display: flex;">
-<img src="images/exampleH_eucledian1.png" style="width: 50%">
-<img src="images/exampleH_eucledian2.png" style="width: 50%">
-</div>
+| Cluster View 1                      | Cluster View 2                      |
+| ----------------------------------- | ----------------------------------- |
+| ![](images/exampleH_eucledian1.png) | ![](images/exampleH_eucledian2.png) |
+
+---
 
 ### Cityblock
 
-<div style="display: flex;">
-<img src="images/exampleH_cityblock1.png" style="width: 50%">
-<img src="images/exampleH_cityblock2.png" style="width: 50%">
-</div>
+| Cluster View 1                      | Cluster View 2                      |
+| ----------------------------------- | ----------------------------------- |
+| ![](images/exampleH_cityblock1.png) | ![](images/exampleH_cityblock2.png) |
 
 ## Project Download
 
