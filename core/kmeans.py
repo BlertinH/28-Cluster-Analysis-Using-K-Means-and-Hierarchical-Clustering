@@ -44,12 +44,20 @@ class KMeans:
     def _compute_inertia(self, X, centroids):
         d = cdist(X, centroids, metric=self.distance_metric)
         min_dist = np.min(d, axis=1)
-        return np.sum(min_dist ** 2) if self.distance_metric == "euclidean" else np.sum(min_dist)
+        return (
+            np.sum(min_dist ** 2)
+            if self.distance_metric == "euclidean"
+            else np.sum(min_dist)
+        )
 
     def _compute_centroid(self, pts):
         if len(pts) == 0:
             return None
-        return np.median(pts, axis=0) if self.distance_metric == "cityblock" else np.mean(pts, axis=0)
+        return (
+            np.median(pts, axis=0)
+            if self.distance_metric == "cityblock"
+            else np.mean(pts, axis=0)
+        )
 
     def _init_kmeanspp(self, X):
         n = len(X)
@@ -93,7 +101,6 @@ class KMeans:
 
         labels = np.argmin(cdist(X, centroids, metric=self.distance_metric), axis=1)
         inertia = self._compute_inertia(X, centroids)
-
         return centroids, labels, inertia
 
     def _minibatch(self, X, init_centroids):
@@ -105,6 +112,7 @@ class KMeans:
 
             d = cdist(batch, centroids, metric=self.distance_metric)
             labels = np.argmin(d, axis=1)
+
             lr = 1.0 / np.sqrt(it)
 
             for j in range(len(centroids)):
@@ -138,8 +146,10 @@ class KMeans:
         clusters = [np.arange(n)]
 
         while len(clusters) < self.k:
-            worst = max(range(len(clusters)),
-                        key=lambda i: self._cluster_inertia(X, clusters[i]))
+            worst = max(
+                range(len(clusters)),
+                key=lambda i: self._cluster_inertia(X, clusters[i]),
+            )
 
             idxs = clusters.pop(worst)
             if len(idxs) <= 2:
@@ -164,7 +174,8 @@ class KMeans:
             labels[idxs] = i
 
         centroids = np.array(centroids)
-        return centroids, labels, self._compute_inertia(X, centroids)
+        inertia = self._compute_inertia(X, centroids)
+        return centroids, labels, inertia
 
     def fit(self, X):
         X = self._validate_input(X)
@@ -196,4 +207,6 @@ class KMeans:
         if self.centroids is None:
             raise RuntimeError("Model not fitted")
         X_new = self._validate_input(X_new)
-        return np.argmin(cdist(X_new, self.centroids, metric=self.distance_metric), axis=1)
+        return np.argmin(
+            cdist(X_new, self.centroids, metric=self.distance_metric), axis=1
+        )
