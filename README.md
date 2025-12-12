@@ -206,7 +206,7 @@ This repository contains all source files, example data, and documentation requi
 
 ---
 
-## 👥 Group Members
+## Group Members
 
 This project was developed as part of a group assignment.  
 The following members contributed to the design, implementation, and testing of the system:
